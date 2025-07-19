@@ -1,0 +1,28 @@
+presets:
+  default:
+    temperature: 0.8
+    top_p: 0.9
+    repeat_penalty: 1.15
+    repeat_last_n: 64
+    max_tokens: 300
+
+  creative:
+    temperature: 1.0
+    top_p: 0.95
+    repeat_penalty: 1.1
+    repeat_last_n: 64
+    max_tokens: 500
+
+  precise:
+    temperature: 0.3
+    top_p: 0.8
+    repeat_penalty: 1.2
+    repeat_last_n: 64
+    max_tokens: 200
+
+parameter_limits:
+  temperature: [0.1, 2.0]
+  top_p: [0.1, 1.0]
+  repeat_penalty: [1.0, 2.0]
+  repeat_last_n: [1, 512]
+  max_tokens: [1, 2048]

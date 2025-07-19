@@ -1,0 +1,7 @@
+models:
+  mistral-7b-base:
+    path: "/Users/ramiibrahimi/Documents/project_repos/my_llm/llama.cpp/models/mistral-7b-base.gguf"
+    executable: "/Users/ramiibrahimi/Documents/project_repos/my_llm/llama.cpp/build/bin/llama-cli"
+    size_gb: 4.1
+    description: "Mistral 7B base model - uncensored"
+    status: "active"
