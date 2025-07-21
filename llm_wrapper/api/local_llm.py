@@ -21,6 +21,7 @@ class LocalLLM:
         model: Optional[str] = None,
         preset: str = "default",
         config_dir: str = "config",
+        allow_slow_models: bool = True,
     ):
         """
         Initialize the LocalLLM interface.
@@ -49,6 +50,7 @@ class LocalLLM:
         self.engine.set_preset(preset)
         self.templates = PromptTemplates()
         self.benchmark = LLMBenchmark(self)
+        self.allow_slow_models = allow_slow_models
 
     def generate(self, prompt: str, **kwargs) -> str:
         """
@@ -61,21 +63,64 @@ class LocalLLM:
         Returns:
             Generated text
         """
+        # current_model = self.engine.model_manager.get_current_model()
+        model_info = self.engine.model_manager.get_model_info()
+
+        if model_info.get("size_gb", 0) > 50:
+            profile_name = getattr(self.engine, "current_memory_profile", "unknown")
+            if profile_name in ["mmap_aggressive", "ultra_conservative"]:
+                print(f"⚠️  Large model detected - this may take several minutes")
+                print(f"   Strategy: {profile_name}")
+
+                if not self.allow_slow_models:
+                    raise RuntimeError(
+                        "Large model generation disabled. Set allow_slow_models=True"
+                    )
         return self.engine.generate(prompt, **kwargs)
 
+    def estimate_generation_time(
+        self, prompt: str, max_tokens: int = 300
+    ) -> Dict[str, Any]:
+        """Estimate how long generation will take"""
+        model_info = self.engine.model_manager.get_model_info()
+        model_size_gb = model_info.get("size_gb", 0)
+
+        if hasattr(self.engine, "memory_manager"):
+            _, profile = self.engine.memory_manager.select_optimal_profile(
+                model_size_gb
+            )
+            performance = self.engine.memory_manager.estimate_performance(
+                model_size_gb, profile
+            )
+
+            tokens_per_second = performance["estimated_tokens_per_second"]
+            estimated_seconds = max_tokens / tokens_per_second
+
+            return {
+                "estimated_duration_seconds": estimated_seconds,
+                "estimated_duration_minutes": estimated_seconds / 60,
+                "tokens_per_second": tokens_per_second,
+                "memory_strategy": self.engine.current_memory_profile or "unknown",
+            }
+
+        return {"estimated_duration_seconds": "unknown"}
+
+    def generate_with_progress(self, prompt: str, **kwargs):
+        """Generate with progress estimation"""
+        estimate = self.estimate_generation_time(prompt, kwargs.get("max_tokens", 300))
+
+        if estimate["estimated_duration_seconds"] != "unknown":
+            if estimate["estimated_duration_minutes"] > 2:
+                print(
+                    f"⏳ Estimated generation time: {estimate['estimated_duration_minutes']:.1f} minutes"
+                )
+                print(f"   Strategy: {estimate['memory_strategy']}")
+
+        return self.generate(prompt, **kwargs)
+
     def chat(self, message: str, context: Optional[List[str]] = None, **kwargs) -> str:
-        """
-        Chat-style interaction with optional context.
-
-        Args:
-            message: The user's message
-            context: List of previous messages for context
-            **kwargs: Parameter overrides
-
-        Returns:
-            Model's response
-        """
-        # Build prompt with context
+        """Chat with memory-aware warnings"""
+        # Build prompt with context (existing logic)
         if context:
             prompt_parts = []
             for i, ctx_msg in enumerate(context):
@@ -89,7 +134,12 @@ class LocalLLM:
         else:
             prompt = f"Human: {message}\nAssistant:"
 
-        return self.generate(prompt, **kwargs)
+        # Use generate_with_progress for large models
+        model_info = self.engine.model_manager.get_model_info()
+        if model_info.get("size_gb", 0) > 50:
+            return self.generate_with_progress(prompt, **kwargs)
+        else:
+            return self.generate(prompt, **kwargs)
 
     def set_model(self, model_name: str):
         """Switch to a different model"""
@@ -145,52 +195,38 @@ class LocalLLM:
 
     # Convenience methods for experimentation
     def experiment(
-        self,
-        prompt: str,
-        presets: Optional[List[str]] = None,
-        parameters: Optional[Dict[str, List[Any]]] = None,
+        self, prompt: str, presets: Optional[List[str]] = None, **kwargs
     ) -> Dict[str, str]:
-        """
-        Run the same prompt with different settings for comparison.
+        """Experiment with memory awareness"""
+        if presets is None:
+            presets = ["default", "creative", "precise"]
 
-        Args:
-            prompt: The prompt to test
-            presets: List of presets to try (default: all available)
-            parameters: Dict of parameter names to lists of values to try
-
-        Returns:
-            Dict mapping setting descriptions to responses
-        """
         results = {}
         original_preset = self.current_preset()
 
-        try:
-            # Test different presets
-            if presets is None:
-                presets = ["default", "creative", "precise"]
+        # Warn about large model experiments
+        model_info = self.engine.model_manager.get_model_info()
+        if model_info.get("size_gb", 0) > 50:
+            print(f"⚠️  Large model experiment - each preset may take several minutes")
+            total_estimate = self.estimate_generation_time(
+                prompt, kwargs.get("max_tokens", 100)
+            )
+            if total_estimate["estimated_duration_seconds"] != "unknown":
+                total_time = total_estimate["estimated_duration_minutes"] * len(presets)
+                print(
+                    f"   Total estimated time: {total_time:.1f} minutes for {len(presets)} presets"
+                )
 
+        try:
             for preset in presets:
                 try:
                     self.set_preset(preset)
-                    response = self.generate(prompt, max_tokens=100)
+                    # Use regular generate (not generate_with_progress to avoid spam)
+                    response = self.generate(prompt, max_tokens=100, **kwargs)
                     results[f"preset_{preset}"] = response
                 except Exception as e:
                     results[f"preset_{preset}"] = f"Error: {str(e)}"
-
-            # Test different parameters
-            if parameters:
-                self.set_preset("default")  # Reset to default for parameter testing
-                for param_name, values in parameters.items():
-                    for value in values:
-                        try:
-                            kwargs = {param_name: value}
-                            response = self.generate(prompt, max_tokens=100, **kwargs)
-                            results[f"{param_name}_{value}"] = response
-                        except Exception as e:
-                            results[f"{param_name}_{value}"] = f"Error: {str(e)}"
-
         finally:
-            # Restore original preset
             self.set_preset(original_preset)
 
         return results

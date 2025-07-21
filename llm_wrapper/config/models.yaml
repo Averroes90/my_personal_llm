@@ -3,5 +3,20 @@ models:
     path: "/Users/ramiibrahimi/Documents/project_repos/my_llm/llama.cpp/models/mistral-7b-base.gguf"
     executable: "/Users/ramiibrahimi/Documents/project_repos/my_llm/llama.cpp/build/bin/llama-cli"
     size_gb: 4.1
+    layers: 32
     description: "Mistral 7B base model - uncensored"
     status: "active"
+
+  llama-3-70b-f16:
+    path: "/Users/ramiibrahimi/Documents/project_repos/my_llm/llama.cpp/models/llama-3-70b-f16.gguf"
+    executable: "/Users/ramiibrahimi/Documents/project_repos/my_llm/llama.cpp/build/bin/llama-cli"
+    size_gb: 140
+    layers: 80 # Llama-3-70B layer count
+    description: "Llama-3 70B base model - Full precision F16"
+    status: "active"
+
+memory_management:
+  emergency_disk_space_gb: 50 # Always keep this much disk free
+  max_swap_usage_percent: 80 # Maximum swap file usage
+  auto_cleanup_temp_files: true # Clean temporary files
+  progressive_loading: true # Load models in chunks when needed

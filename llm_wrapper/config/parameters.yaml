@@ -1,28 +1,35 @@
 presets:
   default:
-    temperature: 0.8
-    top_p: 0.9
-    repeat_penalty: 1.15
-    repeat_last_n: 64
-    max_tokens: 300
+    temperature: 0.8 # Balanced creativity and focus
+    top_p: 0.9 # Allow most vocabulary choices
+    repeat_penalty: 1.15 # Mild repetition reduction
+    repeat_last_n: 64 # Check last 64 tokens for repeats
+    max_tokens: 300 # Medium-length responses
 
   creative:
-    temperature: 1.0
-    top_p: 0.95
-    repeat_penalty: 1.1
-    repeat_last_n: 64
-    max_tokens: 500
+    temperature: 1.0 # Higher randomness for creativity
+    top_p: 0.95 # Allow diverse word choices
+    repeat_penalty: 1.1 # Light repetition penalty
+    repeat_last_n: 64 # Standard repetition window
+    max_tokens: 500 # Longer creative outputs
 
   precise:
-    temperature: 0.3
-    top_p: 0.8
-    repeat_penalty: 1.2
-    repeat_last_n: 64
-    max_tokens: 200
+    temperature: 0.3 # Low randomness for accuracy
+    top_p: 0.8 # Conservative word selection
+    repeat_penalty: 1.2 # Stronger repetition avoidance
+    repeat_last_n: 64 # Standard repetition window
+    max_tokens: 200 # Concise, focused responses
 
 parameter_limits:
-  temperature: [0.1, 2.0]
-  top_p: [0.1, 1.0]
-  repeat_penalty: [1.0, 2.0]
-  repeat_last_n: [1, 512]
-  max_tokens: [1, 2048]
+  temperature: [0.1, 2.0] # Controls randomness: lower = more focused, higher = more creative
+  top_p: [0.1, 1.0] # Nucleus sampling: lower = more conservative word choices
+  repeat_penalty: [1.0, 2.0] # Penalizes repetition: higher = less repetitive text
+  repeat_last_n: [1, 512] # Number of recent tokens to check for repetition
+  max_tokens: [1, 2048] # Maximum length of generated response
+
+# Parameter explanations:
+# temperature: 0.1 = very deterministic, 1.0 = balanced, 2.0 = very random
+# top_p: 0.1 = only most likely words, 0.9 = allows creative word choices
+# repeat_penalty: 1.0 = no penalty, 1.5 = strong penalty for repetition
+# repeat_last_n: how many recent tokens to consider when applying repeat_penalty
+# max_tokens: total number of tokens the model will generate (not input + output)
