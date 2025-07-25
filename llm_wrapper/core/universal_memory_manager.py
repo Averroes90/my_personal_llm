@@ -20,14 +20,17 @@ class UniversalMemoryManager:
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage("/")
 
+        # More robust platform detection
+        import platform
+
         return {
             "total_ram_gb": memory.total / (1024**3),
             "available_ram_gb": memory.available / (1024**3),
             "total_disk_gb": disk.total / (1024**3),
             "available_disk_gb": disk.free / (1024**3),
             "cpu_cores": psutil.cpu_count(),
-            "platform": os.uname().system,
-            "architecture": os.uname().machine,
+            "platform": platform.system(),  # Works across Python versions
+            "architecture": platform.machine(),  # More reliable
         }
 
     def _define_memory_profiles(self) -> Dict[str, Dict]:

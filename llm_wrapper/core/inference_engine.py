@@ -55,8 +55,12 @@ class InferenceEngine:
         params.update(kwargs)  # Allow temporary overrides
 
         # Build command with parameters
-        command = self._build_command(model_info, prompt, params)
-
+        command_result = self._build_command(model_info, prompt, params)
+        # Handle the tuple return from _build_command
+        if isinstance(command_result, tuple):
+            command, profile_config = command_result
+        else:
+            command = command_result
         # Execute and return result
         return self._execute_command(command)
 
@@ -123,19 +127,45 @@ class InferenceEngine:
 
         return command, profile_config
 
-    def _execute_command(self, command: list) -> str:
+    def _execute_command(self, command_info) -> str:
         """Execute the llama.cpp command and return output"""
+        # Debug: Print what we received
+        print(f"DEBUG: command_info type: {type(command_info)}")
+        print(f"DEBUG: command_info content: {command_info}")
+        # Handle both old format (just command) and new format (command, profile)
+        if isinstance(command_info, tuple):
+            command, resource_limits = command_info
+        else:
+            command = command_info
+            resource_limits = {}
+        # Debug: Print the final command
+        print(f"DEBUG: final command type: {type(command)}")
+        print(f"DEBUG: final command: {command}")
+        # Make sure command is a list of strings
+        if not isinstance(command, list):
+            raise RuntimeError(f"Command should be a list, got {type(command)}")
+
+        # Check each element is a string
+        for i, item in enumerate(command):
+            if not isinstance(item, str):
+                raise RuntimeError(
+                    f"Command item {i} should be string, got {type(item)}: {item}"
+                )
+
         try:
             print(f"🔄 Executing: {' '.join(command[:4])}... (truncated)")
 
             result = subprocess.run(
-                command, capture_output=True, text=True, timeout=120  # 2 minute timeout
+                command,  # Make sure this is a list of strings
+                capture_output=True,
+                text=True,
+                timeout=120,  # 2 minute timeout
             )
 
             if result.returncode != 0:
                 raise RuntimeError(f"Command failed: {result.stderr}")
 
-            # Parse output
+            # Parse output (llama.cpp includes prompt in output, so we need to extract just the generation)
             output = result.stdout.strip()
             return self._parse_output(output)
 
